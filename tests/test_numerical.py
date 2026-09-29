@@ -2,14 +2,18 @@
 import ast
 import copy
 import importlib.util
+import json
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
+from types import SimpleNamespace
 
 import numpy as np
 import tifffile
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTACT = ROOT / 'code/03_contact_analysis'
@@ -27,7 +31,7 @@ def example_pair():
     for partner in ('er', 'golgi'):
         value = 30.0 if partner == 'er' else None
         record = dict(cell=1, instance_id=7, morphology='compact', partner=partner,
-                      dilation_xy_pixels_4nm=4,
+                      measurement_protocol=proximity.PROTOCOL,
                       distance_status='resolved_le100_nm' if value is not None else 'greater_than_100_nm',
                       min_distance_nm_le100=value if value is not None else '',
                       golgi_missing_outer_strip_in_halo=1 if partner == 'golgi' else 0)
@@ -47,6 +51,22 @@ class NumericalTests(unittest.TestCase):
 
     def test_threshold_distance_independent_reference(self):
         proximity.self_test()
+
+    def test_direct_label_geometry_is_not_modified(self):
+        mito = np.zeros((5, 80, 80), dtype=bool)
+        mito[2, 39:41, 39:41] = True
+        partner = np.zeros_like(mito)
+        partner[2, 39, 48] = True
+        before = mito.copy()
+        rows, _ = proximity.evaluate(dict(mito=mito, er=partner, golgi=partner,
+                                          origin=(0, 0, 0), cell=1, id=7, morphology='compact'))
+        np.testing.assert_array_equal(mito, before)
+        self.assertEqual(len(rows), 2)
+        for row in rows:
+            self.assertEqual(row['min_distance_nm_le100'], 32.0)
+            self.assertEqual(row['le_30nm'], 0)
+            self.assertEqual(row['le_50nm'], 1)
+            self.assertEqual(row['measurement_protocol'], proximity.PROTOCOL)
 
     def test_fullrange_independent_expanded_grid(self):
         extension.self_test()
@@ -122,6 +142,66 @@ class NumericalTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             assemble(rows, 1, expected=1)
 
+    def test_primary_adapter_rejects_unversioned_results(self):
+        rows = example_pair()
+        rows[0].pop('measurement_protocol')
+        with self.assertRaises(ValueError):
+            assemble(rows, 1, expected=1)
 
+    def test_previous_run_protocol_and_completion_gate(self):
+        with tempfile.TemporaryDirectory(prefix='hgg-protocol-') as tmp:
+            folder = Path(tmp)
+            (folder / 'configuration.json').write_text(json.dumps({'measurement_protocol': 'legacy'}))
+            (folder / 'COMPLETE.json').write_text(json.dumps({'status': 'PASS'}))
+            with self.assertRaises(ValueError):
+                proximity.require_completed_run(folder)
+            (folder / 'configuration.json').write_text(json.dumps({'measurement_protocol': proximity.PROTOCOL}))
+            with self.assertRaises(ValueError):
+                proximity.require_completed_run(folder)
+            (folder / 'COMPLETE.json').write_text(json.dumps({'status': 'PASS', 'measurement_protocol': proximity.PROTOCOL}))
+            self.assertEqual(proximity.require_completed_run(folder)['measurement_protocol'], proximity.PROTOCOL)
+
+    def test_file_based_label_distance_pipeline(self):
+        with tempfile.TemporaryDirectory(prefix='hgg-label-pipeline-') as tmp:
+            root = Path(tmp)
+            paths = proximity.sources(root, 2)
+            for folder in paths.values():
+                folder.mkdir(parents=True)
+            mito = np.zeros((3, 24, 30), dtype=np.uint16)
+            mito[:, 4:6, 2:4] = 7
+            er = np.zeros_like(mito, dtype=np.uint8)
+            er[1, 4, 8] = 1
+            golgi = np.zeros((3, 12, 15), dtype=np.uint16)
+            golgi[1, 2, 14] = 9
+            for kind, volume in [('mito', mito), ('er', er), ('golgi', golgi)]:
+                for z, plane in enumerate(volume):
+                    section = z if kind == 'golgi' else z + 1
+                    Image.fromarray(plane).save(paths[kind] / f'{section}.tif')
+            cohort = root / 'cohort.csv'
+            bounds = root / 'bounds.csv'
+            proximity.write_csv(cohort, [dict(cell='Cell 2', instance_id=7, morphology='compact')])
+            proximity.write_csv(bounds, [dict(cell=2, role='native_stitched', instance_id=7,
+                                              min_z=0, max_z_excl=3, min_r=4, max_r_excl=6,
+                                              min_c=2, max_c_excl=4, voxel_count=12)])
+            previous = root / 'thresholds'
+            with mock.patch.dict(proximity.EXPECTED, {2: 1}), mock.patch.dict(proximity.SHAPES, {2: mito.shape}):
+                proximity.run_cell(SimpleNamespace(root=root, cohort=cohort, bounds=bounds,
+                                                    output=previous, cell=2, workers=1, check_only=False))
+                long_rows = proximity.read_csv(previous / 'cell2/per_instance_proximity.csv')
+                self.assertEqual(len(long_rows), 2)
+                primary_rows = assemble(long_rows, 2, expected=1)
+                self.assertEqual(float(primary_rows[0]['er_distance_nm_le100']), 36.0)
+                self.assertEqual(primary_rows[0]['golgi_distance_nm_le100'], '')
+                primary = root / 'primary.csv'
+                proximity.write_csv(primary, primary_rows)
+                full = root / 'fullrange'
+                extension.main(SimpleNamespace(root=root, previous=previous, primary=primary,
+                                               bounds=bounds, output=full, cell=2, workers=1))
+                final = proximity.read_csv(full / 'cell2/per_instance_full_distances.csv')[0]
+                self.assertEqual(float(final['er_min_distance_nm']), 36.0)
+                self.assertEqual(float(final['golgi_min_distance_nm']), 196.0)
+                self.assertEqual(final['measurement_protocol'], proximity.PROTOCOL)
+                self.assertEqual(final['er_le_30nm'], '0')
+                self.assertEqual(final['er_le_50nm'], '1')
 if __name__ == '__main__':
     unittest.main()

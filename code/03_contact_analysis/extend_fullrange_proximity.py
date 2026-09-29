@@ -6,7 +6,7 @@ coarse voxel centre. KD-tree centre distances provide rigorous search bounds;
 candidate distances are evaluated to every block's occupied 4-nm grid range.
 All source query points lie on the 4-nm grid, so clamping to the block's XY
 range is an exact discrete-voxel-centre distance, not a continuous membrane
-distance. Source mitochondria are independently dilated by the same XY disk.
+distance. Source mitochondrial labels retain their input geometry.
 """
 import argparse
 import csv
@@ -21,7 +21,9 @@ from PIL import Image
 from scipy import ndimage as ndi
 from scipy.spatial import cKDTree
 
-from recompute_mask_proximity import sources, file_map, SHAPES, disk, expand2
+from recompute_mask_proximity import (
+    sources, file_map, SHAPES, EXPECTED, PROTOCOL, expand2, require_completed_run,
+)
 
 Image.MAX_IMAGE_PIXELS = None
 
@@ -110,6 +112,10 @@ def self_test():
 
 def main(args):
     start = time.time()
+    require_completed_run(args.previous / f'cell{args.cell}')
+    rows = [r for r in read_csv(args.primary) if int(r['cell']) == args.cell]
+    if any(row.get('measurement_protocol') != PROTOCOL for row in rows):
+        raise ValueError('Incompatible primary table; use the current direct-label run.')
     out = args.output / f'cell{args.cell}'
     out.mkdir(parents=True, exist_ok=True)
     if (out / 'COMPLETE.json').exists():
@@ -118,11 +124,8 @@ def main(args):
     fd = os.open(str(out / 'RUNNING.lock'), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
     os.write(fd, str(os.getpid()).encode()); os.close(fd)
     cell = args.cell
-    rows = [r for r in read_csv(args.primary) if int(r['cell']) == cell]
-    expected = {1:2676, 2:530, 3:624}[cell]
+    expected = EXPECTED[cell]
     assert len(rows) == expected and len({r['instance_id'] for r in rows}) == expected
-    for row in rows:
-        assert int(row['dilation_xy_pixels_4nm']) == 4
     role = 'native_proofread' if cell == 3 else 'native_stitched'
     bounds = {int(r['instance_id']): r for r in read_csv(args.bounds)
               if int(r['cell']) == cell and r['role'] == role}
@@ -179,8 +182,10 @@ def main(args):
             o = active.pop(ident)
             count = int(o['mask'].sum() // 4)
             assert count == int(bounds[ident]['voxel_count']), (ident,count,bounds[ident]['voxel_count'])
-            dilated = ndi.binary_dilation(o['mask'], structure=disk(4))
-            surface = dilated & ~ndi.binary_erosion(dilated, border_value=0)
+            # Query the boundary of the original support. Only positive (>100 nm)
+            # distances reach this stage, so the nearest source voxel is on it.
+            # The original mask is not replaced by an eroded or grown object.
+            surface = o['mask'] & ~ndi.binary_erosion(o['mask'], border_value=0)
             pts = np.argwhere(surface) + np.asarray(o['origin'])
             np.save(cache / f'{ident}.npy', pts.astype(np.int32))
             completed += 1
@@ -250,7 +255,8 @@ def main(args):
     (out / 'COMPLETE.json').write_text(json.dumps(dict(status='PASS',cell=cell,instances=expected,
         exact_distances=len(result),thresholds_unchanged=True,source_hashes_verified=True,
         elapsed_seconds=time.time()-start,primary_sha256=hashlib.sha256(args.primary.read_bytes()).hexdigest(),
-        method='all-range exact minimum to 4-nm nearest-neighbour foreground grid; 16-nm XY disk dilation'),indent=2))
+        measurement_protocol=PROTOCOL,
+        method='all-range exact minimum between supplied labels on the 4-nm nearest-neighbour grid'),indent=2))
     progress('COMPLETE',instances=expected)
 
 

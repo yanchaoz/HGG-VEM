@@ -67,7 +67,7 @@ Required fields:
 cell,role,instance_id,min_z,max_z_excl,min_r,max_r_excl,min_c,max_c_excl,voxel_count
 ```
 
-`cell` is an integer. Use `role=native_stitched` for Cells 1/2 and `role=native_proofread` for Cell 3. Bounds are **zero-based, end-exclusive** on the original 50×8×8-nm label grid; `r` means Y and `c` means X. `voxel_count` is the native-grid count, not the count after replication or dilation. The first-stage script checks archived, current, and cropped counts for equality. The optional historical `touches_outer_face` column is tolerated. Do not add arbitrary nonnumeric columns to this study-specific table reader.
+`cell` is an integer. Use `role=native_stitched` for Cells 1/2 and `role=native_proofread` for Cell 3. Bounds are **zero-based, end-exclusive** on the original 50×8×8-nm label grid; `r` means Y and `c` means X. `voxel_count` is the native-grid count, not the count after replication. The first-stage script checks archived, current, and cropped counts for equality. The optional historical `touches_outer_face` column is tolerated. Do not add arbitrary nonnumeric columns to this study-specific table reader.
 
 ## Contact output contracts
 
@@ -76,13 +76,13 @@ The first stage writes a `cellN/` folder with:
 - `configuration.json`: spacing, thresholds, cohort hashes, source paths, and mapping settings.
 - `input_manifest.csv`: decoded per-section hashes and image metadata.
 - `cohort_count_audit.csv`: native object-count agreement.
-- `per_instance_proximity.csv`: one row per ID × partner × dilation radius.
+- `per_instance_proximity.csv`: one row per ID × partner, with `measurement_protocol=as_provided_labels_v1`.
 - `threshold_summary.csv`: positive counts, fixed denominators, and percentages.
 - `COMPLETE.json`: `status=PASS` only after the script's checks succeed.
 
 `distance_status=resolved_le100_nm` has an exact `min_distance_nm_le100`. `greater_than_100_nm` has an empty numerical distance. Threshold columns are binary `le_30nm`, `le_50nm`, `le_80nm`, and `le_100nm`, using an inclusive comparison and the code's floating-point tolerance.
 
-`assemble_primary_table.py` selects radius 4 and pairs ER/Golgi rows by cell and instance ID. Its output has integer `cell`, `instance_id`, `morphology`, `dilation_xy_pixels_4nm`, and partner-prefixed fields such as `er_distance_status`, `er_distance_nm_le100`, and `er_le_30nm`. It preserves censoring and flags and refuses duplicate, incomplete, or inconsistent object pairs. This is the `--primary` input for the extension.
+`assemble_primary_table.py` pairs ER/Golgi rows by cell and instance ID. Its output has integer `cell`, `instance_id`, `morphology`, `measurement_protocol`, and partner-prefixed fields such as `er_distance_status`, `er_distance_nm_le100`, and `er_le_30nm`. It preserves censoring and flags and refuses duplicate, incomplete, incompatible, or inconsistent object pairs. This is the `--primary` input for the extension. Both stages require certified prior outputs carrying the current measurement protocol; earlier run schemas must not be reused or relabelled as current results.
 
 The full-range extension writes `per_instance_full_distances.csv` with `er_min_distance_nm` and `golgi_min_distance_nm`, method labels, independent witness checks, and a completion report. It verifies the decoded source hashes against the first-stage manifest and checks that all threshold calls remain unchanged. Its full-target KD-tree can require substantial RAM. Choose worker counts for the actual server; this is not a streaming constant-memory implementation.
 
