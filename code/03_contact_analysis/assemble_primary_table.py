@@ -1,10 +1,11 @@
-"""Pair primary (radius-4) threshold rows for the full-range extension.
+"""Pair direct-label threshold rows for the full-range extension.
 
 New release adapter; does not estimate missing distances or change calls.
 """
 import argparse
 import csv
 from pathlib import Path
+from recompute_mask_proximity import PROTOCOL, require_completed_run
 
 EXPECTED = {1: 2676, 2: 530, 3: 624}
 THRESHOLDS = (30, 50, 80, 100)
@@ -13,8 +14,10 @@ THRESHOLDS = (30, 50, 80, 100)
 def assemble(rows, cell, expected):
     grouped = {}
     for row in rows:
-        if int(row['cell']) != cell or int(row['dilation_xy_pixels_4nm']) != 4:
+        if int(row['cell']) != cell:
             continue
+        if row.get('measurement_protocol') != PROTOCOL:
+            raise ValueError('Incompatible threshold table; use the current direct-label run.')
         ident = int(row['instance_id'])
         partner = row['partner']
         if partner not in ('er', 'golgi'):
@@ -32,7 +35,7 @@ def assemble(rows, cell, expected):
         if group['er']['morphology'] != group['golgi']['morphology']:
             raise ValueError(f'Morphology mismatch for {ident}')
         result = dict(cell=cell, instance_id=ident, morphology=group['er']['morphology'],
-                      dilation_xy_pixels_4nm=4)
+                      measurement_protocol=PROTOCOL)
         for partner, row in group.items():
             status = row['distance_status']
             value = row['min_distance_nm_le100']
@@ -64,6 +67,7 @@ def main():
     parser.add_argument('--cell', required=True, type=int, choices=(1, 2, 3))
     parser.add_argument('--output', required=True, type=Path)
     args = parser.parse_args()
+    require_completed_run(args.previous / f'cell{args.cell}')
     with (args.previous / f'cell{args.cell}' / 'per_instance_proximity.csv').open(encoding='utf-8-sig', newline='') as f:
         records = assemble(list(csv.DictReader(f)), args.cell, EXPECTED[args.cell])
     args.output.parent.mkdir(parents=True, exist_ok=True)

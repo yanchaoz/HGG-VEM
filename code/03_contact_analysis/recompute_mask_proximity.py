@@ -3,7 +3,7 @@
 Reads sources without editing them. Fixed IDs are never relabelled or dropped.
 Native 8-nm mitochondria/ER and 16-nm Golgi are mapped by integer
 nearest-neighbour replication in XY, without changing the physical field of
-view. Each instance is virtually dilated independently in XY only.
+view. Distances use the supplied instance geometry without modification.
 Object-local halos guarantee all <=100-nm calls; larger distances are censored,
 not substituted with a maximum distance. This is not a global-distance table.
 """
@@ -23,15 +23,22 @@ from scipy.spatial import cKDTree
 
 Image.MAX_IMAGE_PIXELS = None
 SPACING = np.array([50., 4., 4.])  # Z,Y,X
-RADII = (0,4)  # Primary: 4 raw-grid pixels = 16 nm; 0 is the paired baseline.
+PROTOCOL = 'as_provided_labels_v1'
 THRESHOLDS = (30, 50, 80, 100)
 EXPECTED = {1:2676, 2:530, 3:624}
 SHAPES = {1:(544,6625,8480), 2:(340,4500,5000), 3:(415,4560,4728)}
 
 
-def disk(r):
-    y,x=np.ogrid[-r:r+1,-r:r+1]
-    return (x*x+y*y <= r*r)[None,:,:]
+def require_completed_run(folder):
+    """Reject incompatible or incomplete prior outputs before reusing distances."""
+    folder = Path(folder)
+    configuration = json.loads((folder / 'configuration.json').read_text())
+    complete = json.loads((folder / 'COMPLETE.json').read_text())
+    if configuration.get('measurement_protocol') != PROTOCOL:
+        raise ValueError('Incompatible prior measurement protocol; run the current label-distance stage first.')
+    if complete.get('status') != 'PASS' or complete.get('measurement_protocol') != PROTOCOL:
+        raise ValueError('Prior label-distance run is not certified complete.')
+    return configuration
 
 
 def expand2(a):
@@ -80,35 +87,31 @@ def nearest_target(partner,point):
 
 def evaluate(obj):
     mito=obj['mito']
-    positions={r:np.flatnonzero(mito if r==0 else ndi.binary_dilation(mito,structure=disk(r))) for r in RADII}
-    assert all(len(p)>0 for p in positions.values()),obj['id']
+    positions=np.flatnonzero(mito)
+    assert len(positions)>0,obj['id']
     answer=[]
     origin=np.array(obj['origin'])
     for name in ('er','golgi'):
         partner=obj[name]
         dist=ndi.distance_transform_edt(~partner,sampling=SPACING) if partner.any() else None
-        previous=np.inf
-        for r in RADII:
-            row=dict(cell=obj['cell'],instance_id=obj['id'],morphology=obj['morphology'],
-                     partner=name,dilation_xy_pixels_4nm=r,dilation_nm=4*r,
-                     golgi_missing_outer_strip_in_halo=int(obj.get('golgi_missing_strip_in_halo',False)) if name=='golgi' else 0,
-                     distance_status='greater_than_100_nm',min_distance_nm_le100='',
-                     mito_z='',mito_y='',mito_x='',partner_z='',partner_y='',partner_x='')
-            if dist is not None:
-                vals=dist.ravel()[positions[r]]
-                i=int(np.argmin(vals)); d=float(vals[i])
-                assert d <= previous+1e-9,(obj['id'],r,d,previous)
-                previous=d
-                if d <= 100+1e-9:
-                    p=np.array(np.unravel_index(positions[r][i],mito.shape))
-                    q,check=nearest_target(partner,p)
-                    assert abs(check-d)<1e-9,(check,d)
-                    row.update(distance_status='resolved_le100_nm',min_distance_nm_le100=d)
-                    for prefix,point in [('mito',p+origin),('partner',q+origin)]:
-                        for axis,value in zip('zyx',point):row[prefix+'_'+axis]=int(value)
-            else:d=np.inf
-            for t in THRESHOLDS:row[f'le_{t}nm']=int(d <= t+1e-9)
-            answer.append(row)
+        row=dict(cell=obj['cell'],instance_id=obj['id'],morphology=obj['morphology'],
+                 partner=name,measurement_protocol=PROTOCOL,
+                 golgi_missing_outer_strip_in_halo=int(obj.get('golgi_missing_strip_in_halo',False)) if name=='golgi' else 0,
+                 distance_status='greater_than_100_nm',min_distance_nm_le100='',
+                 mito_z='',mito_y='',mito_x='',partner_z='',partner_y='',partner_x='')
+        if dist is not None:
+            vals=dist.ravel()[positions]
+            i=int(np.argmin(vals)); d=float(vals[i])
+            if d <= 100+1e-9:
+                p=np.array(np.unravel_index(positions[i],mito.shape))
+                q,check=nearest_target(partner,p)
+                assert abs(check-d)<1e-9,(check,d)
+                row.update(distance_status='resolved_le100_nm',min_distance_nm_le100=d)
+                for prefix,point in [('mito',p+origin),('partner',q+origin)]:
+                    for axis,value in zip('zyx',point):row[prefix+'_'+axis]=int(value)
+        else:d=np.inf
+        for t in THRESHOLDS:row[f'le_{t}nm']=int(d <= t+1e-9)
+        answer.append(row)
     return answer,int(mito.sum()//4)
 
 
@@ -123,9 +126,7 @@ def self_test():
         rows,_=evaluate(obj)
         tree=cKDTree(np.argwhere(p)*SPACING) if p.any() else None
         for row in rows:
-            r=row['dilation_xy_pixels_4nm']
-            expanded=m if r==0 else ndi.binary_dilation(m,structure=disk(r))
-            d=float(tree.query(np.argwhere(expanded)*SPACING)[0].min()) if tree else np.inf
+            d=float(tree.query(np.argwhere(m)*SPACING)[0].min()) if tree else np.inf
             for t in THRESHOLDS:assert row[f'le_{t}nm']==int(d<=t+1e-9)
             if d<=100:assert abs(d-row['min_distance_nm_le100'])<1e-9
     # A same-XY adjacent section is exactly 50 nm, not 4 nm.
@@ -174,12 +175,11 @@ def run_cell(args):
                 bounds_sha256=hashlib.sha256(args.bounds.read_bytes()).hexdigest(),
                 source_folders={k:str(p) for k,p in sources(args.root,cell).items()},
                 xyz_spacing_nm=[4,4,50],instance_native_xyz_spacing_nm=[8,8,50],er_native_xyz_spacing_nm=[8,8,50],golgi_native_xyz_spacing_nm=[16,16,50],
-                dilation_radii_xy_4nm_pixels=RADII,z_dilation=0,thresholds_nm=THRESHOLDS,
+                measurement_protocol=PROTOCOL,label_geometry='as_provided',thresholds_nm=THRESHOLDS,
                 threshold_rule='minimum foreground-voxel-centre Euclidean distance <= threshold',
                 er_foreground='nonzero',golgi_foreground='nonzero instance ID/palette index',additional_body_mask=False,
                 halo_xy_4nm_pixels=32,halo_z_sections=3,
                 resampling='nearest neighbour, integer replication, XYZ origin unchanged, no whole-field stretch',
-                primary_dilation_4nm_pixels=4,
                 golgi_field_edge='Cell 1 has two fewer raw-grid rows; missing outer strip is outside observed target support, never stretched. Affected object halos are flagged.',
                 note='ER/Golgi from newly copied data only; Cell 3 proofread mitochondrial IDs. Old cohort distances are not imported.')
     (out/'configuration.json').write_text(json.dumps(config,indent=2))
@@ -261,21 +261,21 @@ def run_cell(args):
                            crop_native_voxels=cropped,exact_count_match=expected==observed==cropped))
     write_csv(out/'cohort_count_audit.csv',audits)
     assert all(r['exact_count_match'] for r in audits),'Source or bounding-box drift: results not certified.'
-    results.sort(key=lambda r:(r['instance_id'],r['partner'],r['dilation_xy_pixels_4nm']))
-    assert len(results)==EXPECTED[cell]*2*len(RADII)
+    results.sort(key=lambda r:(r['instance_id'],r['partner']))
+    assert len(results)==EXPECTED[cell]*2
     write_csv(out/'per_instance_proximity.csv',results)
     write_csv(out/'input_manifest.csv',manifest)
     summary=[]
     for name in ('er','golgi'):
-        for radius in RADII:
-            selected=[r for r in results if r['partner']==name and r['dilation_xy_pixels_4nm']==radius]
-            for t in THRESHOLDS:
-                positive=sum(r[f'le_{t}nm'] for r in selected)
-                summary.append(dict(cell=cell,partner=name,dilation_xy_pixels_4nm=radius,dilation_nm=radius*4,
-                                    threshold_nm=t,positive=positive,denominator=EXPECTED[cell],percent=100*positive/EXPECTED[cell]))
+        selected=[r for r in results if r['partner']==name]
+        for t in THRESHOLDS:
+            positive=sum(r[f'le_{t}nm'] for r in selected)
+            summary.append(dict(cell=cell,partner=name,measurement_protocol=PROTOCOL,
+                                threshold_nm=t,positive=positive,denominator=EXPECTED[cell],percent=100*positive/EXPECTED[cell]))
     write_csv(out/'threshold_summary.csv',summary)
     (out/'COMPLETE.json').write_text(json.dumps(dict(cell=cell,elapsed_seconds=time.time()-start,
-                                  validated_instances=len(cohort),per_instance_rows=len(results),status='PASS'),indent=2))
+                                  validated_instances=len(cohort),per_instance_rows=len(results),
+                                  measurement_protocol=PROTOCOL,status='PASS'),indent=2))
     print('COMPLETE',cell,'instances',len(cohort),'seconds',round(time.time()-start),flush=True)
 
 
