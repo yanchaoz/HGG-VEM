@@ -1,0 +1,38 @@
+[
+  {
+    "name": "SparK.txt",
+    "repo": "keyu-tian/SparK",
+    "url": "https://github.com/keyu-tian/SparK/blob/main/LICENSE",
+    "sha": "2d1bfa9c8db716e3b134979ece397f893a859eec"
+  },
+  {
+    "name": "PyTorch-Connectomics.txt",
+    "repo": "PytorchConnectomics/pytorch_connectomics",
+    "url": "https://github.com/PytorchConnectomics/pytorch_connectomics/blob/master/LICENSE",
+    "sha": "7ff3047df3ae3d56c76c3fb5ae413b33df2c4a4c"
+  },
+  {
+    "name": "nnUNet-v1.txt",
+    "repo": "MIC-DKFZ/nnUNet",
+    "url": "https://github.com/MIC-DKFZ/nnUNet/blob/nnunetv1/LICENSE",
+    "sha": "8bbe09cd335d3da0509c52ee207647cb6cb79368"
+  },
+  {
+    "name": "PointNet2.txt",
+    "repo": "yanx27/Pointnet_Pointnet2_pytorch",
+    "url": "https://github.com/yanx27/Pointnet_Pointnet2_pytorch/blob/master/LICENSE",
+    "sha": "cad006d1cc469dfd61eb1e4b4fbedf5cff4b37b8"
+  },
+  {
+    "name": "BYOL-pytorch.txt",
+    "repo": "lucidrains/byol-pytorch",
+    "url": "https://github.com/lucidrains/byol-pytorch/blob/master/LICENSE",
+    "sha": "cad43213602892aadc2290cca7afa74cc9f6af64"
+  },
+  {
+    "name": "STU-Net.txt",
+    "repo": "uni-medical/STU-Net",
+    "url": "https://github.com/uni-medical/STU-Net/blob/main/LICENSE",
+    "sha": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64"
+  }
+]
