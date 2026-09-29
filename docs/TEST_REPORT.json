@@ -1,0 +1,39 @@
+{
+  "syntax_python_files": 24,
+  "recompute_mask_proximity.py": {
+    "exit_code": 0,
+    "stdout": "SELF_TEST_PASS: KDTree, empty target, Z anisotropy, inclusive threshold, halo.\n",
+    "stderr": ""
+  },
+  "extend_fullrange_proximity.py": {
+    "exit_code": 0,
+    "stdout": "SELF_TEST_PASS: 48 expanded-grid independent KDTree comparisons\n",
+    "stderr": ""
+  },
+  "instance_synthetic": {
+    "connected_objects": 2,
+    "watershed_objects": 2,
+    "boundary_dilation_did_not_erode_support": true
+  },
+  "simsiam_rename_parity": {
+    "loss_original": 3.948773145675659,
+    "loss_release": 3.948773145675659,
+    "max_parameter_gradient_difference": 0.0,
+    "initial_state_equal": true,
+    "target_momentum": false
+  },
+  "pointnet_cpu_forward": {
+    "input_shape": [
+      2,
+      1024,
+      3
+    ],
+    "output_shape": [
+      2,
+      1024
+    ]
+  },
+  "mim_runtime": "NOT RUN: timm/nnU-Net training environment not established; syntax and U-Net entry statically checked",
+  "gpu_training": "NOT RUN",
+  "status": "PASS_FOR_LISTED_TESTS"
+}

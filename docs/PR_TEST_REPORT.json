@@ -1,0 +1,55 @@
+{
+  "python": "3.8.18",
+  "tests": {
+    "test_numerical.py": {
+      "exit_code": 0,
+      "stdout": "SELF_TEST_PASS: 48 expanded-grid independent KDTree comparisons\nSELF_TEST_PASS: KDTree, empty target, Z anisotropy, inclusive threshold, halo.\n",
+      "stderr": "test_connected_instances (test_numerical.NumericalTests) ... ok\ntest_fullrange_independent_expanded_grid (test_numerical.NumericalTests) ... ok\ntest_instance_cli_and_refusal_to_overwrite (test_numerical.NumericalTests) ... ok\ntest_primary_adapter_preserves_censoring_and_flags (test_numerical.NumericalTests) ... ok\ntest_primary_adapter_rejects_incomplete_or_duplicate_pairs (test_numerical.NumericalTests) ... ok\ntest_primary_adapter_rejects_inconsistent_calls (test_numerical.NumericalTests) ... ok\ntest_probability_range_rejected (test_numerical.NumericalTests) ... ok\ntest_seed_dilation_preserves_support (test_numerical.NumericalTests) ... ok\ntest_source_syntax (test_numerical.NumericalTests) ... ok\ntest_threshold_distance_independent_reference (test_numerical.NumericalTests) ... ok\n\n----------------------------------------------------------------------\nRan 10 tests in 0.929s\n\nOK\n"
+    },
+    "test_pointcloud.py": {
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "test_mesh_utility (test_pointcloud.PointCloudTests) ... ok\ntest_pointnet_forward (test_pointcloud.PointCloudTests) ... ok\ntest_simsiam_backward (test_pointcloud.PointCloudTests) ... ok\n\n----------------------------------------------------------------------\nRan 3 tests in 1.917s\n\nOK\n"
+    }
+  },
+  "versions": {
+    "numpy": "1.24.1",
+    "scipy": "1.10.1",
+    "scikit-image": "0.21.0",
+    "tifffile": "2023.7.10",
+    "torch": "2.1.1+cu118",
+    "h5py": "3.10.0",
+    "trimesh": "4.7.1"
+  },
+  "gpu_training_started": false,
+  "status": "PASS_FOR_EXECUTED_TESTS",
+  "input_python_sha256": {
+    "code/04_pointcloud_ssl/train_simsiam.py": "a9595b99dddd2b0b26091152fd444f545c12e09b893fb2ef3d00bfde37a102e6",
+    "code/04_pointcloud_ssl/extract_embeddings.py": "d597acf77d853e297fe2c282d9f95a306840c51f2e4852c9194f35b427359a13",
+    "code/04_pointcloud_ssl/simsiam.py": "4b68c021ebb58c22e31cc658808a2bacb0ddbc7987f963cc0addcf4db3045dc1",
+    "code/04_pointcloud_ssl/mesh_to_pointcloud.py": "2b7a8f8841165db15f47ebadcd11c8b5d9e4f0ee1cc781996f8541370b82b6fb",
+    "code/04_pointcloud_ssl/model/pointnet_util.py": "0d53421fac05691ea377a2447ed92e3c72e6e461b9aede26fcc45b509045693d",
+    "code/04_pointcloud_ssl/model/pointnetv2_encoder.py": "145ce021226ba3696f8cb5a70ce1c262675739330c52e8d516c873b680fd5c43",
+    "code/04_pointcloud_ssl/data_utils/augmentation.py": "f8a719bbcb0634709ee5628d3cdc4758b8770fd4a0e174a6820539cf7ee1240f",
+    "code/04_pointcloud_ssl/data_utils/pcloader.py": "80e7397d625f25ea2cecf830a11dd6e3eaedce325d1e8d75ebf72c8ad5518aad",
+    "code/02_mitochondrial_instances/instances_from_probabilities.py": "3af132a8b5aead9b8d7b797b054ab61f57f7369bf2e6ec6096780872f47a4342",
+    "code/02_mitochondrial_instances/connectomics/misc.py": "6b495988fadb59089f746deefe48aa75343fef39891a27dca0e8c13b05c82f70",
+    "code/02_mitochondrial_instances/connectomics/process.py": "7271c34d4b165febe4f6b66b58d2c371bb43d17910dd2c04917ddb3dd2cbc31c",
+    "code/01_masked_image_modeling/decoder3D.py": "cde153d06889e55fea2967949a8b9e5695fba955b5f7d5b430cccb313aecbd6f",
+    "code/01_masked_image_modeling/pretrain_nn.py": "c69f07786d090c38edcb762275be7ba3ee1cee4f1d5d01ff682c52536a21faca",
+    "code/01_masked_image_modeling/encoder3D.py": "27582819f0ba4c407409de2164434f9366b7dcb99d8af502ed710fb943a05e86",
+    "code/01_masked_image_modeling/STUNet_head.py": "531690e9b251be2187ec47a9bfb98c542197c578e600ea5957fcb82efe035b3e",
+    "code/01_masked_image_modeling/visual2d.py": "f899d85d593d61ce47385fbd0e9c79ab3708c087408bed1545c2e6ec5696ac62",
+    "code/01_masked_image_modeling/pretrain_provider_r.py": "89ce9fad2c05bf8db1cd4f5c125b36bdf56300bc87f2d216f5a059f7501aeed7",
+    "code/01_masked_image_modeling/spark3D.py": "fa59051dff70023a99dc923405e2c9d71462c02d8caa1ec27c79ae4482000fdb",
+    "code/01_masked_image_modeling/nnUNet_head.py": "5021fc44f096aa397ddbabbb67bc0c07e53eff9c6539b25dac0f937e4ee04fd0",
+    "code/01_masked_image_modeling/utils/augmentation.py": "d8f2b21ca46c943ece2833af6c5e6db1dbc273ffe88fd1420404b5f3735efa33",
+    "code/01_masked_image_modeling/utils/coordinate.py": "993887f2183e71e08795473999483abf0f2cce6eb65a5d156192a95505791a9b",
+    "code/01_masked_image_modeling/utils/utils.py": "905cc6d67de72cb87dbe8b518355608cb4e054bddd4669ee31255a24d6b62e26",
+    "code/03_contact_analysis/recompute_mask_proximity.py": "aa3c4f62f836da45df9029d56ce1da59aac5620889ac48b51a0f91bc952a17b2",
+    "code/03_contact_analysis/assemble_primary_table.py": "c934eb6faf081633c5c11da2ab0b67f208b5ff772a0d4ed048cbefad1e80da6d",
+    "code/03_contact_analysis/extend_fullrange_proximity.py": "08c8fb4db2253bee7484ce69f6aba43bede2ff63b6246443a34c9f8dcdaae211",
+    "tests/test_pointcloud.py": "e6641574044ff987176cc3d587a2facda6ca96a1fd5a51a65fb6e70769d234ca",
+    "tests/test_numerical.py": "894ecfb78f506f4b2ec21fde305a6bb6932075e8b0bdbaaff9fe75779487bc2a"
+  }
+}
