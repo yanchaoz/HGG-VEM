@@ -87,9 +87,17 @@ Set `DATA.pointcloud_h5` in `config/hgg_simsiam.yaml`. The PointNet++ encoder pr
 
 ## Data and coordinates
 
-Associated data project: [HGG-VEM on Hugging Face](https://huggingface.co/datasets/yanchaoz/HGG-VEM). Refer to its dataset card and file list for deposited contents and access conditions.
+Representative EM crops, mitochondrial surface meshes and the trained PointNet++ checkpoint are deposited in [HGG-VEM on Hugging Face](https://huggingface.co/datasets/yanchaoz/HGG-VEM/tree/main), separately from this code repository:
 
-The prepared package contains representative EM crops at **50 × 16 × 16 nm (ZYX)** and **2676 / 530 / 624 mitochondrial meshes** for Cells 1–3. Image and mesh files are managed separately from this code repository.
+| Resource | Deposited file |
+| --- | --- |
+| Representative EM crops at **50 × 16 × 16 nm (ZYX)** | [`raw_em_16nm_nucleus_centered.rar`](https://huggingface.co/datasets/yanchaoz/HGG-VEM/blob/main/raw_em_16nm_nucleus_centered.rar) |
+| Cell 1 mitochondrial surface meshes | [`cell1_mitochondrial_meshes.tar.gz`](https://huggingface.co/datasets/yanchaoz/HGG-VEM/blob/main/cell1_mitochondrial_meshes.tar.gz) |
+| Cell 2 mitochondrial surface meshes | [`cell2_mitochondrial_meshes.tar.gz`](https://huggingface.co/datasets/yanchaoz/HGG-VEM/blob/main/cell2_mitochondrial_meshes.tar.gz) |
+| Cell 3 mitochondrial surface meshes | [`cell3_mitochondrial_meshes.tar.gz`](https://huggingface.co/datasets/yanchaoz/HGG-VEM/blob/main/cell3_mitochondrial_meshes.tar.gz) |
+| Trained PointNet++ representation-learning checkpoint | [`mito-pointnet++.ckpt`](https://huggingface.co/datasets/yanchaoz/HGG-VEM/blob/main/mito-pointnet%2B%2B.ckpt) |
+
+The mesh collections contain **2676 / 530 / 624 mitochondrial meshes** for Cells 1–3. The shared checkpoint is for mitochondrial point-cloud representation learning with the PointNet++-based SimSiam workflow; it is **not a segmentation-model checkpoint**. The [training configuration](code/04_pointcloud_ssl/config/hgg_simsiam.yaml), model code, dependency requirements and [checkpoint/embedding instructions](code/04_pointcloud_ssl/README.md) are provided in this repository.
 
 - TIFF arrays use **ZYX**; CloudVolume indexing uses **XYZ**.
 - Legacy OBJ vertices store **(Y, X, Z) in nanometres**. Swap the first two coordinates for XYZ; do not multiply by voxel spacing again.
@@ -107,7 +115,7 @@ python -m unittest discover -s tests -p 'test_numerical.py' -v
 python -m unittest discover -s tests -p 'test_pointcloud.py' -v
 ```
 
-Tests use synthetic inputs. Environment details, completed checks, and untested workflows are listed in [validation](docs/VALIDATION.md). Pretrained weights, complete training data, and the formal morphometric measurement pipeline are not included.
+Tests use synthetic inputs. Environment details, completed checks, and untested workflows are listed in [validation](docs/VALIDATION.md). The representation-learning checkpoint is hosted separately on Hugging Face as listed above. The complete EM and annotation datasets, full-volume segmentation masks, segmentation-model weights and the complete morphometric measurement pipeline are not included in the present release. Resource availability does not imply that full training or end-to-end reproduction has been rerun during packaging.
 
 ## Acknowledgements
 
